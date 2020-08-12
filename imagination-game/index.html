@@ -1,0 +1,122 @@
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+body {
+	background: #008;
+	color: #fff;
+	text-align: center;
+}
+
+p#message {
+	color: red;
+	font-size: 50;
+}
+
+</style>
+<script>
+
+'use strict';
+
+let timer = undefined;
+let last_time = undefined;
+
+function interval_ms() {
+	return parseInt(document.getElementById('interval').value) * 1000;
+}
+
+function player_list() {
+	return document.getElementById('players').value.trim().split('\n');
+}
+
+function randomize_modality() {
+	const choices = document.getElementById('modality').value;
+	if (choices === 'thinking-feeling') {
+		if (Math.random() < 0.5) {
+			return 'thinking';
+		} else {
+			return 'feeling';
+		}
+	} else {
+		return 'salient';
+	}
+}
+
+function randomize_message() {
+	const modality = randomize_modality();
+	const players = player_list();
+	if (players.length >= 2) {
+		let player1 = Math.floor(Math.random() * players.length);
+		let player2 = undefined;
+		do {
+			player2 = Math.floor(Math.random() * players.length);
+		} while (player2 === player1);
+
+		player1 = players[player1];
+		player2 = players[player2];
+
+		switch (modality) {
+			case 'salient':
+				return `${player1}, imagine what is salient for ${player2}`;
+			case 'thinking':
+				return `${player1}, imagine what ${player2} is thinking`;
+			case 'feeling':
+				return `${player1}, imagine what ${player2} is feeling`;
+		}
+	}
+}
+
+function interrupt() {
+	document.getElementById('message').textContent = randomize_message();
+}
+
+function tick() {
+	let time = new Date().getTime();
+	if (time - last_time >= interval_ms()) {
+		last_time = time;
+		interrupt();
+	}
+}
+
+function play() {
+	if (timer !== undefined) {
+		clearInterval(timer);
+	}
+
+	last_time = new Date().getTime();
+
+	timer = setInterval(tick,5000);
+}
+
+</script>
+</head>
+<body>
+	<p>
+	Who's playing? Enter names separated by newlines.
+	</p>
+	<p>
+	<textarea id="players" rows="6" cols="80"></textarea>
+	</p>
+	<p>
+	<select id="modality">
+		<option value="salient">What's salient</option>
+		<option value="thinking-feeling">Thinking/feeling</option>
+	</select>
+	</p>
+	<p>
+	<select id="interval">
+		<option value="60">1 minute</option>
+		<option value="120">2 minutes</option>
+		<option value="180">3 minutes</option>
+		<option value="240">4 minutes</option>
+		<option value="300">5 minutes</option>
+	</select>
+	</p>
+	<p>
+	<input type="button" value="Play" onclick="play()">
+	</p>
+	<p id="message">
+	</p>
+</body>
+</html>
