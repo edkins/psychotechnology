@@ -1,3 +1,9 @@
+###########################
+#
+# Header
+#
+###########################
+
 terraform {
   required_providers {
     aws = {
@@ -15,6 +21,14 @@ variable "stage" {
   type = string
 }
 
+data "aws_caller_identity" "current" {}
+
+###########################
+#
+# DynamoDB
+#
+###########################
+
 resource "aws_dynamodb_table" "imag_table" {
   name         = "${var.stage}_imag"
   billing_mode = "PAY_PER_REQUEST"
@@ -30,6 +44,38 @@ resource "aws_dynamodb_table" "imag_table" {
     type = "S"
   }
 }
+
+###########################
+#
+# S3
+#
+###########################
+
+resource "aws_s3_bucket" "static" {
+  bucket = "${data.aws_caller_identity.current.account_id}-${var.stage}-static"
+}
+
+resource "aws_s3_bucket_public_access_block" "static_block" {
+  bucket = aws_s3_bucket.static.id
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_object" "index" {
+  bucket = aws_s3_bucket.static.id
+  key = "index.html"
+  source = "index.html"
+  etag = filemd5("index.html")
+}
+
+###########################
+#
+# IAM roles and policies
+#
+###########################
+
 
 resource "aws_iam_role" "api_lambda_role" {
   name = "${var.stage}_api_lambda"
@@ -82,6 +128,61 @@ resource "aws_iam_role_policy" "api_lambda_policy" {
   EOF
 }
 
+resource "aws_iam_role" "s3_lambda_role" {
+  name = "${var.stage}_s3_lambda"
+
+  assume_role_policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+}
+
+resource "aws_iam_role_policy" "s3_lambda_policy" {
+  name = "s3_lambda_policy"
+  role = aws_iam_role.s3_lambda_role.id
+
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "s3:GetObject"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_s3_bucket.static.arn}/*"
+      },
+      {
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Effect": "Allow",
+        "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/${var.stage}_imag_s3*"
+      }
+    ]
+  }
+  EOF
+}
+
+###########################
+#
+# Lambdas
+#
+###########################
+
 resource "aws_lambda_function" "api_lambda" {
   function_name    = "${var.stage}_imag_api"
   filename         = "handler.zip"
@@ -91,21 +192,48 @@ resource "aws_lambda_function" "api_lambda" {
   runtime          = "python3.8"
 }
 
+resource "aws_lambda_function" "s3_lambda" {
+  function_name    = "${var.stage}_imag_s3"
+  filename         = "handler.zip"
+  source_code_hash = filebase64sha256("handler.zip")
+  role             = aws_iam_role.s3_lambda_role.arn
+  handler          = "s3.handler"
+  runtime          = "python3.8"
+  environment {
+    variables = {
+      bucket = aws_s3_bucket.static.id
+    }
+  }
+}
+
+###########################
+#
+# API Gateway + Lambda permissions
+#
+###########################
+
 resource "aws_apigatewayv2_api" "apig" {
   name          = "${var.stage}_imag_http"
   protocol_type = "HTTP"
 }
 
-resource "aws_lambda_permission" "lambda_permission" {
-  statement_id  = "AllowMyPIInvoke"
+resource "aws_lambda_permission" "api_lambda_permission" {
+  statement_id  = "AllowAPIInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api_lambda.arn
   principal     = "apigateway.amazonaws.com"
-
   source_arn = "${aws_apigatewayv2_api.apig.execution_arn}/*/*/*"
 }
 
-resource "aws_apigatewayv2_integration" "apig_integ" {
+resource "aws_lambda_permission" "s3_lambda_permission" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.s3_lambda.arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn = "${aws_apigatewayv2_api.apig.execution_arn}/*/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "apig_api_integ" {
   api_id                    = aws_apigatewayv2_api.apig.id
   integration_type          = "AWS_PROXY"
   connection_type           = "INTERNET"
@@ -115,10 +243,32 @@ resource "aws_apigatewayv2_integration" "apig_integ" {
   payload_format_version    = "2.0"
 }
 
+resource "aws_apigatewayv2_integration" "apig_s3_integ" {
+  api_id                    = aws_apigatewayv2_api.apig.id
+  integration_type          = "AWS_PROXY"
+  connection_type           = "INTERNET"
+  integration_method        = "POST"
+  integration_uri           = aws_lambda_function.s3_lambda.invoke_arn
+  passthrough_behavior      = "WHEN_NO_MATCH"
+  payload_format_version    = "2.0"
+}
+
 resource "aws_apigatewayv2_route" "apig_route_api_get" {
   api_id    = aws_apigatewayv2_api.apig.id
   route_key = "GET /api/{path+}"
-  target    = "integrations/${aws_apigatewayv2_integration.apig_integ.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.apig_api_integ.id}"
+}
+
+resource "aws_apigatewayv2_route" "apig_route_root" {
+  api_id    = aws_apigatewayv2_api.apig.id
+  route_key = "GET /"
+  target    = "integrations/${aws_apigatewayv2_integration.apig_s3_integ.id}"
+}
+
+resource "aws_apigatewayv2_route" "apig_route_room" {
+  api_id    = aws_apigatewayv2_api.apig.id
+  route_key = "GET /room/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.apig_s3_integ.id}"
 }
 
 resource "aws_apigatewayv2_stage" "apig_stage" {

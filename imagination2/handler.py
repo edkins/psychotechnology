@@ -1,6 +1,6 @@
 import re
 
-re_room = re.compile(r'room/([a-zA-Z0-9]+)')
+re_room = re.compile(r'^room/([a-zA-Z0-9]+)$')
 
 def handler(event, context):
     path = event['pathParameters']['path']
