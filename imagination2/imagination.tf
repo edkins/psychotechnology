@@ -67,6 +67,15 @@ resource "aws_iam_role_policy" "api_lambda_policy" {
         ],
         "Effect": "Allow",
         "Resource": "${aws_dynamodb_table.imag_table.arn}"
+      },
+      {
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Effect": "Allow",
+        "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/${var.stage}_imag_api*"
       }
     ]
   }
@@ -114,7 +123,11 @@ resource "aws_apigatewayv2_route" "apig_route_api_get" {
 
 resource "aws_apigatewayv2_stage" "apig_stage" {
   api_id = aws_apigatewayv2_api.apig.id
-  name = var.stage
+  name = "$default"
   auto_deploy = true
+  default_route_settings {
+    throttling_burst_limit = 10
+    throttling_rate_limit = 1
+  }
 }
 
