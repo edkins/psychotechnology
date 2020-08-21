@@ -19,15 +19,16 @@ def get_text(name, content_type):
     }
 
 def handler(event, context):
-    path = event['rawPath']
-    if re_room.match(path) or path == '/':
-        return get_text('index.html', 'text/html')
-    else:
-        return {
-            'cookies': [],
-            'isBase64Encoded': False,
-            'statusCode': 404,
-            'headers': {},
-            'body': '{"message":"Not Found"}'
-        }
+    path = event['requestContext']['http']['path']
+    method = event['requestContext']['http']['method']
+    if method == 'GET':
+        if re_room.match(path) or path == '/':
+            return get_text('index.html', 'text/html')
+    return {
+        'cookies': [],
+        'isBase64Encoded': False,
+        'statusCode': 404,
+        'headers': {},
+        'body': '{"message":"Not Found"}'
+    }
 

@@ -259,6 +259,12 @@ resource "aws_apigatewayv2_route" "apig_route_api_get" {
   target    = "integrations/${aws_apigatewayv2_integration.apig_api_integ.id}"
 }
 
+resource "aws_apigatewayv2_route" "apig_route_api_post" {
+  api_id    = aws_apigatewayv2_api.apig.id
+  route_key = "POST /api/{path+}"
+  target    = "integrations/${aws_apigatewayv2_integration.apig_api_integ.id}"
+}
+
 resource "aws_apigatewayv2_route" "apig_route_root" {
   api_id    = aws_apigatewayv2_api.apig.id
   route_key = "GET /"
