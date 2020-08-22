@@ -190,6 +190,11 @@ resource "aws_lambda_function" "api_lambda" {
   role             = aws_iam_role.api_lambda_role.arn
   handler          = "handler.handler"
   runtime          = "python3.8"
+  environment {
+    variables = {
+      table = aws_dynamodb_table.imag_table.name
+    }
+  }
 }
 
 resource "aws_lambda_function" "s3_lambda" {
