@@ -56,18 +56,18 @@ resource "aws_s3_bucket" "static" {
 }
 
 resource "aws_s3_bucket_public_access_block" "static_block" {
-  bucket = aws_s3_bucket.static.id
-  block_public_acls   = true
-  block_public_policy = true
-  ignore_public_acls = true
+  bucket                  = aws_s3_bucket.static.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_object" "index" {
   bucket = aws_s3_bucket.static.id
-  key = "index.html"
+  key    = "index.html"
   source = "index.html"
-  etag = filemd5("index.html")
+  etag   = filemd5("index.html")
 }
 
 ###########################
@@ -227,7 +227,7 @@ resource "aws_lambda_permission" "api_lambda_permission" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api_lambda.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn = "${aws_apigatewayv2_api.apig.execution_arn}/*/*/*"
+  source_arn    = "${aws_apigatewayv2_api.apig.execution_arn}/*/*/*"
 }
 
 resource "aws_lambda_permission" "s3_lambda_permission" {
@@ -235,27 +235,27 @@ resource "aws_lambda_permission" "s3_lambda_permission" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.s3_lambda.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn = "${aws_apigatewayv2_api.apig.execution_arn}/*/*/*"
+  source_arn    = "${aws_apigatewayv2_api.apig.execution_arn}/*/*/*"
 }
 
 resource "aws_apigatewayv2_integration" "apig_api_integ" {
-  api_id                    = aws_apigatewayv2_api.apig.id
-  integration_type          = "AWS_PROXY"
-  connection_type           = "INTERNET"
-  integration_method        = "POST"
-  integration_uri           = aws_lambda_function.api_lambda.invoke_arn
-  passthrough_behavior      = "WHEN_NO_MATCH"
-  payload_format_version    = "2.0"
+  api_id                 = aws_apigatewayv2_api.apig.id
+  integration_type       = "AWS_PROXY"
+  connection_type        = "INTERNET"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.api_lambda.invoke_arn
+  passthrough_behavior   = "WHEN_NO_MATCH"
+  payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_integration" "apig_s3_integ" {
-  api_id                    = aws_apigatewayv2_api.apig.id
-  integration_type          = "AWS_PROXY"
-  connection_type           = "INTERNET"
-  integration_method        = "POST"
-  integration_uri           = aws_lambda_function.s3_lambda.invoke_arn
-  passthrough_behavior      = "WHEN_NO_MATCH"
-  payload_format_version    = "2.0"
+  api_id                 = aws_apigatewayv2_api.apig.id
+  integration_type       = "AWS_PROXY"
+  connection_type        = "INTERNET"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.s3_lambda.invoke_arn
+  passthrough_behavior   = "WHEN_NO_MATCH"
+  payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_route" "apig_route_api_get" {
@@ -283,12 +283,12 @@ resource "aws_apigatewayv2_route" "apig_route_room" {
 }
 
 resource "aws_apigatewayv2_stage" "apig_stage" {
-  api_id = aws_apigatewayv2_api.apig.id
-  name = "$default"
+  api_id      = aws_apigatewayv2_api.apig.id
+  name        = "$default"
   auto_deploy = true
   default_route_settings {
     throttling_burst_limit = 10
-    throttling_rate_limit = 1
+    throttling_rate_limit  = 1
   }
 }
 
