@@ -177,6 +177,49 @@ resource "aws_iam_role_policy" "s3_lambda_policy" {
   EOF
 }
 
+resource "aws_iam_role" "wskt_lambda_role" {
+  name = "${var.stage}_wskt_lambda"
+
+  assume_role_policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+}
+
+resource "aws_iam_role_policy" "wskt_lambda_policy" {
+  name = "wskt_lambda_policy"
+  role = aws_iam_role.wskt_lambda_role.id
+
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Effect": "Allow",
+        "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/${var.stage}_imag_wskt*"
+      }
+    ]
+  }
+  EOF
+}
+
+
 ###########################
 #
 # Lambdas
@@ -209,6 +252,15 @@ resource "aws_lambda_function" "s3_lambda" {
       bucket = aws_s3_bucket.static.id
     }
   }
+}
+
+resource "aws_lambda_function" "wskt_lambda" {
+  function_name    = "${var.stage}_imag_wskt"
+  filename         = "handler.zip"
+  source_code_hash = filebase64sha256("handler.zip")
+  role             = aws_iam_role.wskt_lambda_role.arn
+  handler          = "wskt.handler"
+  runtime          = "python3.8"
 }
 
 ###########################
@@ -284,6 +336,56 @@ resource "aws_apigatewayv2_route" "apig_route_room" {
 
 resource "aws_apigatewayv2_stage" "apig_stage" {
   api_id      = aws_apigatewayv2_api.apig.id
+  name        = "$default"
+  auto_deploy = true
+  default_route_settings {
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 1
+  }
+}
+
+###########################
+#
+# WebSocket API Gateway + Lambda permissions
+#
+###########################
+
+resource "aws_apigatewayv2_api" "wskt" {
+  name          = "${var.stage}_imag_wskt"
+  protocol_type = "WEBSOCKET"
+}
+
+resource "aws_lambda_permission" "wskt_lambda_permission" {
+  statement_id  = "AllowAPIInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.wskt_lambda.arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.wskt.execution_arn}/*/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "wskt_integ" {
+  api_id                 = aws_apigatewayv2_api.wskt.id
+  integration_type       = "AWS_PROXY"
+  connection_type        = "INTERNET"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.wskt_lambda.invoke_arn
+  passthrough_behavior   = "WHEN_NO_MATCH"
+}
+
+resource "aws_apigatewayv2_route" "wskt_route_connect" {
+  api_id    = aws_apigatewayv2_api.wskt.id
+  route_key = "$connect"
+  target    = "integrations/${aws_apigatewayv2_integration.wskt_integ.id}"
+}
+
+resource "aws_apigatewayv2_route" "wskt_route_disconnect" {
+  api_id    = aws_apigatewayv2_api.wskt.id
+  route_key = "$disconnect"
+  target    = "integrations/${aws_apigatewayv2_integration.wskt_integ.id}"
+}
+
+resource "aws_apigatewayv2_stage" "wskt_stage" {
+  api_id      = aws_apigatewayv2_api.wskt.id
   name        = "$default"
   auto_deploy = true
   default_route_settings {

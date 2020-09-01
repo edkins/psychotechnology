@@ -1,12 +1,46 @@
 <html>
 <head>
+<meta charset="utf-8">
+<style>
+
+div.hidden {
+    display: none;
+}
+
+</style>
 <script>
 'use strict';
+
+function load() {
+    const path = window.location.pathname;
+    const div_room_not_found = document.getElementById('room_not_found');
+    const div_new_room = document.getElementById('new_room');
+    if (path === '/') {
+        room_not_found.classList.add('hidden');
+        div_new_room.classList.remove('hidden');
+    } else if (path.startsWith('/room/')) {
+        const room_id = path.substr(6);
+        fetch(`/api/room/${room_id}`).then(response => {
+            if (response.ok) {
+                room_not_found.classList.add('hidden');
+                div_new_room.classList.add('hidden');
+            } else {
+                room_not_found.classList.remove('hidden');
+                div_new_room.classList.remove('hidden');
+            }
+        });
+    }
+}
+
+window.onload = load;
 
 </script>
 </head>
 <body>
-    <div id="new_room">
+    <div id="room_not_found" class="hidden">
+        This room either doesn't exist or has expired.
+    </div>
+    <div id="new_room" class="hidden">
         <form action="/api/room" method="post">
             <input type="submit" value="Create room">
         </form>
