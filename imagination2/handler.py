@@ -9,6 +9,7 @@ import time
 re_room = re.compile(r'^room/([a-zA-Z0-9]+)$')
 ddb = boto3.client('dynamodb')
 table = os.environ['table']
+ws_url = os.environ['ws_url']
 
 def random_id():
     chars = string.ascii_letters + string.digits
@@ -39,7 +40,9 @@ def get_room(room_id):
             'isBase64Encoded': False,
             'statusCode': 200,
             'headers': {},
-            'body': '{}'
+            'body': json.dumps({
+                'ws_url': ws_url
+            })
         }
     else:
         return {

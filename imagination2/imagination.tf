@@ -23,6 +23,8 @@ variable "stage" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_region" "current" {}
+
 ###########################
 #
 # DynamoDB
@@ -75,6 +77,53 @@ resource "aws_s3_bucket_object" "index" {
 # IAM roles and policies
 #
 ###########################
+
+resource "aws_api_gateway_account" "account" {
+  cloudwatch_role_arn = aws_iam_role.apig_cloudwatch_role.arn
+}
+
+resource "aws_iam_role" "apig_cloudwatch_role" {
+  name = "${var.stage}_apig_cloudwatch"
+
+  assume_role_policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": ["apigateway.amazonaws.com","lambda.amazonaws.com"]
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+}
+
+resource "aws_cloudwatch_log_group" "http_log" {
+  name = "/apigateway/${var.stage}_http"
+}
+
+resource "aws_iam_role_policy" "apig_cloudwatch_policy" {
+  name = "apig_cloudwatch_policy"
+  role = aws_iam_role.apig_cloudwatch_role.id
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "logs:*"
+        ],
+        "Effect": "Allow",
+        "Resource": "*"
+      }
+    ]
+  }
+  EOF
+}
 
 
 resource "aws_iam_role" "api_lambda_role" {
@@ -236,6 +285,7 @@ resource "aws_lambda_function" "api_lambda" {
   environment {
     variables = {
       table = aws_dynamodb_table.imag_table.name
+      ws_url = aws_apigatewayv2_stage.wskt_stage.invoke_url
     }
   }
 }
@@ -342,6 +392,10 @@ resource "aws_apigatewayv2_stage" "apig_stage" {
     throttling_burst_limit = 10
     throttling_rate_limit  = 1
   }
+  access_log_settings {
+    destination_arn = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/apigateway/${var.stage}_http"
+    format = "$context.identity.sourceIp [$context.requestTime] \"$context.httpMethod $context.path $context.protocol\" $context.status $context.responseLength $context.requestId"
+  }
 }
 
 ###########################
@@ -391,6 +445,10 @@ resource "aws_apigatewayv2_stage" "wskt_stage" {
   default_route_settings {
     throttling_burst_limit = 10
     throttling_rate_limit  = 1
+  }
+  access_log_settings {
+    destination_arn = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/apigateway/${var.stage}_wskt"
+    format = "$context.identity.sourceIp [$context.requestTime] \"$context.httpMethod $context.path $context.protocol\" $context.status $context.responseLength $context.requestId"
   }
 }
 
