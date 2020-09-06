@@ -125,6 +125,44 @@ resource "aws_iam_role_policy" "apig_cloudwatch_policy" {
   EOF
 }
 
+resource "aws_iam_role" "wskt_invocation_role" {
+  name = "${var.stage}_wskt_invocation"
+
+  assume_role_policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": ["apigateway.amazonaws.com"]
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+}
+
+resource "aws_iam_role_policy" "wskt_invocation_policy" {
+  name = "wskt_invocation_policy"
+  role = aws_iam_role.wskt_invocation_role.id
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "lambda:InvokeFunction"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_lambda_function.wskt_lambda.arn}"
+      }
+    ]
+  }
+  EOF
+}
 
 resource "aws_iam_role" "api_lambda_role" {
   name = "${var.stage}_api_lambda"
@@ -424,6 +462,7 @@ resource "aws_apigatewayv2_integration" "wskt_integ" {
   integration_method     = "POST"
   integration_uri        = aws_lambda_function.wskt_lambda.invoke_arn
   passthrough_behavior   = "WHEN_NO_MATCH"
+  credentials_arn        = aws_iam_role.wskt_invocation_role.arn
 }
 
 resource "aws_apigatewayv2_route" "wskt_route_connect" {
@@ -435,6 +474,12 @@ resource "aws_apigatewayv2_route" "wskt_route_connect" {
 resource "aws_apigatewayv2_route" "wskt_route_disconnect" {
   api_id    = aws_apigatewayv2_api.wskt.id
   route_key = "$disconnect"
+  target    = "integrations/${aws_apigatewayv2_integration.wskt_integ.id}"
+}
+
+resource "aws_apigatewayv2_route" "wskt_route_default" {
+  api_id    = aws_apigatewayv2_api.wskt.id
+  route_key = "$default"
   target    = "integrations/${aws_apigatewayv2_integration.wskt_integ.id}"
 }
 
