@@ -65,6 +65,13 @@ resource "aws_s3_bucket_public_access_block" "static_block" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_object" "favicon" {
+  bucket = aws_s3_bucket.static.id
+  key    = "favicon.ico"
+  source = "brain-in-bubble.png"
+  etag   = filemd5("brain-in-bubble.png")
+}
+
 resource "aws_s3_bucket_object" "index" {
   bucket = aws_s3_bucket.static.id
   key    = "index.html"
@@ -413,6 +420,12 @@ resource "aws_apigatewayv2_route" "apig_route_api_post" {
 resource "aws_apigatewayv2_route" "apig_route_root" {
   api_id    = aws_apigatewayv2_api.apig.id
   route_key = "GET /"
+  target    = "integrations/${aws_apigatewayv2_integration.apig_s3_integ.id}"
+}
+
+resource "aws_apigatewayv2_route" "apig_route_favicon" {
+  api_id    = aws_apigatewayv2_api.apig.id
+  route_key = "GET /favicon.ico"
   target    = "integrations/${aws_apigatewayv2_integration.apig_s3_integ.id}"
 }
 

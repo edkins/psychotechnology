@@ -12,24 +12,31 @@ div.hidden {
 'use strict';
 
 let connection = undefined;
+let room_id = undefined;
+let ws_url = undefined;
 
 function disconnect() {
     connection.close();
     connection = undefined;
 }
 
-function connect(ws_url) {
+function connect() {
     if (connection !== undefined) {
         disconnect();
     }
     connection = new WebSocket(ws_url);
     connection.onopen = () => {
-        alert('open');
+        name = document.getElementById('name').value;
+        connection.send(JSON.stringify({
+            name,
+            room_id
+        }));
     };
     connection.onclose = () => {
         alert('close');
     }
-    connection.onmessage = () => {
+    connection.onmessage = ev => {
+        console.log(ev);
         alert('message');
     }
 }
@@ -38,24 +45,32 @@ function load() {
     const path = window.location.pathname;
     const div_room_not_found = document.getElementById('room_not_found');
     const div_new_room = document.getElementById('new_room');
+    const div_joining = document.getElementById('joining');
     if (path === '/') {
         room_not_found.classList.add('hidden');
         div_new_room.classList.remove('hidden');
+        div_joining.classList.add('hidden');
     } else if (path.startsWith('/room/')) {
-        const room_id = path.substr(6);
+        room_id = path.substr(6);
         fetch(`/api/room/${room_id}`).then(response => {
             if (response.ok) {
                 response.json().then(body => {
                     room_not_found.classList.add('hidden');
                     div_new_room.classList.add('hidden');
-                    connect(body.ws_url);
+                    div_joining.classList.remove('hidden');
+                    ws_url = body.ws_url;
                 });
             } else {
                 room_not_found.classList.remove('hidden');
                 div_new_room.classList.remove('hidden');
+                div_joining.classList.add('hidden');
             }
         });
     }
+}
+
+function join() {
+    connect();
 }
 
 window.onload = load;
@@ -70,6 +85,10 @@ window.onload = load;
         <form action="/api/room" method="post">
             <input type="submit" value="Create room">
         </form>
+    </div>
+    <div id="joining" class="hidden">
+        Enter your name to join the room: <input type="text" id="name">
+        <input type="button" value="Join" onclick="join()">
     </div>
 </body>
 </html>
