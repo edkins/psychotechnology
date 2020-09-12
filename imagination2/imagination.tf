@@ -301,7 +301,9 @@ resource "aws_iam_role_policy" "wskt_lambda_policy" {
     "Statement": [
       {
         "Action": [
+          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
+          "dynamodb:PutItem",
           "dynamodb:UpdateItem"
         ],
         "Effect": "Allow",
