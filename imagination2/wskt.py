@@ -1,6 +1,9 @@
 def handler(event, context):
     print(event)
-    return {
-        'statusCode': 200,
-        'body': '{}'
-    }
+    if event['requestContext']['routeKey'] == '$connect':
+        return {
+            'statusCode': 200,
+            'body': '{}'
+        }
+    else:
+        return {}

@@ -458,6 +458,7 @@ resource "aws_apigatewayv2_stage" "apig_stage" {
 resource "aws_apigatewayv2_api" "wskt" {
   name          = "${var.stage}_imag_wskt"
   protocol_type = "WEBSOCKET"
+  route_selection_expression = "$${request.body.action}"
 }
 
 resource "aws_lambda_permission" "wskt_lambda_permission" {
