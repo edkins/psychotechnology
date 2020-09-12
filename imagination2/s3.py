@@ -4,9 +4,9 @@ import os
 import re
 
 re_room = re.compile(r'^/room/([a-zA-Z0-9]+)$')
+s3 = boto3.client('s3')
 
 def get_binary(name, content_type):
-    s3 = boto3.client('s3')
     bucket = os.environ['bucket']
     body = s3.get_object(Bucket=bucket, Key=name)['Body'].read()
     return {
@@ -20,7 +20,6 @@ def get_binary(name, content_type):
     }
 
 def get_text(name, content_type):
-    s3 = boto3.client('s3')
     bucket = os.environ['bucket']
     body = s3.get_object(Bucket=bucket, Key=name)['Body'].read().decode('utf-8')
     return {
