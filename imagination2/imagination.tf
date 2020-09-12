@@ -301,6 +301,14 @@ resource "aws_iam_role_policy" "wskt_lambda_policy" {
     "Statement": [
       {
         "Action": [
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_dynamodb_table.imag_table.arn}"
+      },
+      {
+        "Action": [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
@@ -356,6 +364,11 @@ resource "aws_lambda_function" "wskt_lambda" {
   role             = aws_iam_role.wskt_lambda_role.arn
   handler          = "wskt.handler"
   runtime          = "python3.8"
+  environment {
+    variables = {
+      table = aws_dynamodb_table.imag_table.name
+    }
+  }
 }
 
 ###########################

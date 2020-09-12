@@ -22,7 +22,8 @@ def create_room(room_id):
         TableName = table,
         Item = {
             'id': {'S':f'room/{room_id}'},
-            'expiration': {'N':str(expiration)}
+            'expiration': {'N':str(expiration)},
+            'connections': {'M':{}}
         }
     )
 
@@ -32,16 +33,19 @@ def get_room(room_id):
         Key = {
             'id': {'S':f'room/{room_id}'}
         },
-        ProjectionExpression = 'id'
+        ProjectionExpression = 'id,connections'
     )
     if 'Item' in response:
+        print(response['Item'])
+        members = list(sorted(x['M']['name']['S'] for x in response['Item']['connections']['M'].values()))
         return {
             'cookies': [],
             'isBase64Encoded': False,
             'statusCode': 200,
             'headers': {},
             'body': json.dumps({
-                'ws_url': ws_url
+                'ws_url': ws_url,
+                'members': members
             })
         }
     else:

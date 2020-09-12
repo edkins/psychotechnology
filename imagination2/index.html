@@ -28,6 +28,7 @@ function connect() {
     connection.onopen = () => {
         name = document.getElementById('name').value;
         connection.send(JSON.stringify({
+	    action: 'join',
             name,
             room_id
         }));
@@ -46,10 +47,12 @@ function load() {
     const div_room_not_found = document.getElementById('room_not_found');
     const div_new_room = document.getElementById('new_room');
     const div_joining = document.getElementById('joining');
+    const div_members = document.getElementById('members');
     if (path === '/') {
         room_not_found.classList.add('hidden');
         div_new_room.classList.remove('hidden');
         div_joining.classList.add('hidden');
+        div_members.classList.add('hidden');
     } else if (path.startsWith('/room/')) {
         room_id = path.substr(6);
         fetch(`/api/room/${room_id}`).then(response => {
@@ -58,12 +61,15 @@ function load() {
                     room_not_found.classList.add('hidden');
                     div_new_room.classList.add('hidden');
                     div_joining.classList.remove('hidden');
+                    div_members.classList.remove('hidden');
+                    document.getElementById('members_list').textContent = JSON.stringify(body.members);
                     ws_url = body.ws_url;
                 });
             } else {
                 room_not_found.classList.remove('hidden');
                 div_new_room.classList.remove('hidden');
                 div_joining.classList.add('hidden');
+                div_members.classList.add('hidden');
             }
         });
     }
@@ -86,8 +92,11 @@ window.onload = load;
             <input type="submit" value="Create room">
         </form>
     </div>
+    <div id="members" class="hidden">
+	Members: <span id="members_list"></span>
+    </div>
     <div id="joining" class="hidden">
-        Enter your name to join the room: <input type="text" id="name">
+        Enter your name to join the room: <input type="text" id="name" autocomplete="off">
         <input type="button" value="Join" onclick="join()">
     </div>
 </body>
