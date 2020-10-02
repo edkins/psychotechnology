@@ -81,6 +81,22 @@ resource "aws_s3_bucket_object" "index" {
 
 ###########################
 #
+# SQS + Lambda event source mapping
+#
+###########################
+
+resource "aws_sqs_queue" "delivery_queue" {
+  name = "${var.stage}_imag_delivery"
+}
+
+resource "aws_lambda_event_source_mapping" "delivery_mapping" {
+  event_source_arn = aws_sqs_queue.delivery_queue.arn
+  function_name = aws_lambda_function.delivery_lambda.arn
+  batch_size = 1
+}
+
+###########################
+#
 # IAM roles and policies
 #
 ###########################
@@ -323,6 +339,57 @@ resource "aws_iam_role_policy" "wskt_lambda_policy" {
   EOF
 }
 
+resource "aws_iam_role" "delivery_lambda_role" {
+  name = "${var.stage}_delivery_lambda"
+
+  assume_role_policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+}
+
+resource "aws_iam_role_policy" "delivery_lambda_policy" {
+  name = "delivery_lambda_policy"
+  role = aws_iam_role.delivery_lambda_role.id
+
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_sqs_queue.delivery_queue.arn}"
+      },
+      {
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Effect": "Allow",
+        "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/${var.stage}_imag_delivery*"
+      }
+    ]
+  }
+  EOF
+}
+
 
 ###########################
 #
@@ -371,6 +438,15 @@ resource "aws_lambda_function" "wskt_lambda" {
       table = aws_dynamodb_table.imag_table.name
     }
   }
+}
+
+resource "aws_lambda_function" "delivery_lambda" {
+  function_name    = "${var.stage}_imag_delivery"
+  filename         = "handler.zip"
+  source_code_hash = filebase64sha256("handler.zip")
+  role             = aws_iam_role.delivery_lambda_role.arn
+  handler          = "delivery.handler"
+  runtime          = "python3.8"
 }
 
 ###########################

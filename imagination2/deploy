@@ -1,5 +1,5 @@
 set -ex
 rm -f handler.zip
-zip handler.zip handler.py s3.py wskt.py
+zip handler.zip handler.py s3.py wskt.py delivery.py
 terraform apply -var="stage=dev"
 
