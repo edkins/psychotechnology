@@ -93,6 +93,7 @@ resource "aws_lambda_event_source_mapping" "delivery_mapping" {
   event_source_arn = aws_sqs_queue.delivery_queue.arn
   function_name = aws_lambda_function.delivery_lambda.arn
   batch_size = 1
+  maximum_retry_attempts = 5
 }
 
 ###########################
@@ -327,6 +328,13 @@ resource "aws_iam_role_policy" "wskt_lambda_policy" {
       },
       {
         "Action": [
+          "sqs:SendMessage"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_sqs_queue.delivery_queue.arn}"
+      },
+      {
+        "Action": [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
@@ -375,6 +383,13 @@ resource "aws_iam_role_policy" "delivery_lambda_policy" {
         ],
         "Effect": "Allow",
         "Resource": "${aws_sqs_queue.delivery_queue.arn}"
+      },
+      {
+        "Action": [
+          "execute-api:ManageConnections"
+        ],
+        "Effect": "Allow",
+        "Resource": "${aws_apigatewayv2_api.wskt.execution_arn}/*"
       },
       {
         "Action": [
@@ -436,6 +451,7 @@ resource "aws_lambda_function" "wskt_lambda" {
   environment {
     variables = {
       table = aws_dynamodb_table.imag_table.name
+      queue_url = aws_sqs_queue.delivery_queue.id
     }
   }
 }
@@ -447,6 +463,12 @@ resource "aws_lambda_function" "delivery_lambda" {
   role             = aws_iam_role.delivery_lambda_role.arn
   handler          = "delivery.handler"
   runtime          = "python3.8"
+  timeout          = 15
+  environment {
+    variables = {
+      endpoint_url = "https://${aws_apigatewayv2_api.wskt.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/$default"
+    }
+  }
 }
 
 ###########################

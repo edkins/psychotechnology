@@ -4,7 +4,9 @@ import os
 import time
 
 ddb = boto3.client('dynamodb')
+sqs = boto3.client('sqs')
 table = os.environ['table']
+queue_url = os.environ['queue_url']
 
 def join(connection_id, room_id, name):
     print(f'Joining connection_id {connection_id}, room_id {room_id}, name {name}')
@@ -33,6 +35,17 @@ def join(connection_id, room_id, name):
                 }
             }
         }
+    )
+    message = json.dumps({
+        'op': 'post',
+        'cid': connection_id,
+        'msg': {
+            'some':'stuff'
+        }
+    })
+    sqs.send_message(
+        QueueUrl = queue_url,
+        MessageBody = message
     )
 
 def disconnect(connection_id):
