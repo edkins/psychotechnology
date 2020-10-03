@@ -19,7 +19,7 @@ def join(connection_id, room_id, name):
             'room': {'S':room_id}
         }
     )
-    ddb.update_item(
+    attribs = ddb.update_item(
         TableName = table,
         Key = {
             'id': {'S':f'room/{room_id}'}
@@ -34,19 +34,29 @@ def join(connection_id, room_id, name):
                     'name': {'S':name}
                 }
             }
-        }
-    )
-    message = json.dumps({
-        'op': 'post',
-        'cid': connection_id,
-        'msg': {
-            'some':'stuff'
-        }
-    })
-    sqs.send_message(
-        QueueUrl = queue_url,
-        MessageBody = message
-    )
+        },
+        ReturnValues = 'ALL_NEW'
+    )['Attributes']
+    post_state(attribs)
+
+def post_state(attribs):
+    connections = attribs['connections']['M']
+    conids = connections.keys()
+    members = list(sorted(x['M']['name']['S'] for x in connections.values()))
+    for conid in conids:
+        message = json.dumps({
+            'op': 'post',
+            'cid': conid,
+            'msg': {
+                'action': 'state',
+                'members': members
+            }
+        })
+        print(f'Posting state message to {conid}')
+        sqs.send_message(
+            QueueUrl = queue_url,
+            MessageBody = message
+        )
 
 def disconnect(connection_id):
     response = ddb.get_item(
@@ -60,7 +70,7 @@ def disconnect(connection_id):
         print(response['Item'])
         room_id = response['Item']['room']['S']
         print(f'Disconnecting: connection_id {connection_id}, room_id {room_id}')
-        ddb.update_item(
+        attribs = ddb.update_item(
             TableName = table,
             Key = {
                 'id': {'S':f'room/{room_id}'}
@@ -68,14 +78,16 @@ def disconnect(connection_id):
             UpdateExpression = 'REMOVE connections.#conid',
             ExpressionAttributeNames = {
                 '#conid': connection_id
-            }
-        )
+            },
+            ReturnValues = 'ALL_NEW'
+        )['Attributes']
         ddb.delete_item(
             TableName = table,
             Key = {
                 'id': {'S':f'connection/{connection_id}'}
             }
         )
+        post_state(attribs)
     else:
         print(f'Disconnecting: connection_id {connection_id}, no room_id')
 

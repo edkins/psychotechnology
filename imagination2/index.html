@@ -20,6 +20,14 @@ function disconnect() {
     connection = undefined;
 }
 
+function onmessage(ev) {
+    console.log(ev);
+    const data = JSON.parse(ev.data);
+    if (data.action === 'state') {
+        document.getElementById('members_list').textContent = JSON.stringify(data.members);
+    }
+}
+
 function connect() {
     if (connection !== undefined) {
         disconnect();
@@ -34,12 +42,9 @@ function connect() {
         }));
     };
     connection.onclose = () => {
-        alert('close');
+        //alert('close');
     }
-    connection.onmessage = ev => {
-        console.log(ev);
-        alert('message');
-    }
+    connection.onmessage = onmessage;
 }
 
 function load() {
