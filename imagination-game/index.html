@@ -1,6 +1,7 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 
 body {
@@ -43,32 +44,39 @@ function randomize_modality() {
 	}
 }
 
-function randomize_message() {
-	const modality = randomize_modality();
+function randomize_message(old_message) {
 	const players = player_list();
 	if (players.length >= 2) {
-		let player1 = Math.floor(Math.random() * players.length);
-		let player2 = undefined;
-		do {
-			player2 = Math.floor(Math.random() * players.length);
-		} while (player2 === player1);
-
-		player1 = players[player1];
-		player2 = players[player2];
-
-		switch (modality) {
-			case 'salient':
-				return `${player1}, imagine what is salient for ${player2}`;
-			case 'thinking':
-				return `${player1}, imagine what ${player2} is thinking`;
-			case 'feeling':
-				return `${player1}, imagine what ${player2} is feeling`;
+		let circuit_break = 0;
+		for (let i = 0; i < 1000; i++) {
+			const modality = randomize_modality();
+			const player1 = players[Math.floor(Math.random() * players.length)];
+			const player2 = players[Math.floor(Math.random() * players.length)];
+			if (player1 !== player2) {
+				let message = null;
+				switch (modality) {
+					case 'salient':
+						message = `${player1}, imagine what is salient for ${player2}`;
+						break;
+					case 'thinking':
+						message = `${player1}, imagine what ${player2} is thinking`;
+						break;
+					case 'feeling':
+						message = `${player1}, imagine what ${player2} is feeling`;
+						break;
+				}
+				if (message !== old_message) {
+					return message;
+				}
+			}
 		}
 	}
+	return old_message
 }
 
 function interrupt() {
-	document.getElementById('message').textContent = randomize_message();
+	const old_message = document.getElementById('message').textContent;
+	document.getElementById('message').textContent = randomize_message(old_message);
 }
 
 function tick() {
@@ -86,6 +94,7 @@ function play() {
 
 	last_time = new Date().getTime();
 
+	interrupt();
 	timer = setInterval(tick,5000);
 }
 
@@ -93,15 +102,15 @@ function play() {
 </head>
 <body>
 	<p>
-	Who's playing? Enter names separated by newlines.
+	Who's playing? Enter names separated by new lines.
 	</p>
 	<p>
 	<textarea id="players" rows="6" cols="20"></textarea>
 	</p>
 	<p>
 	<select id="modality">
-		<option value="salient">What's salient</option>
 		<option value="thinking-feeling">Thinking/feeling</option>
+		<option value="salient">What's salient</option>
 	</select>
 	</p>
 	<p>
