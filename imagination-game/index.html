@@ -12,9 +12,28 @@ body {
 	min-height: 100vh;
 }
 
+div#messagediv {
+	position: relative;
+}
+
 p#message {
 	color: red;
-	font-size: 50;
+	font-size: 20;
+}
+
+svg#clock {
+	width: 100px;
+	height: 100px;
+	left: calc(50% - 50px);
+	top: -25px;
+	position: absolute;
+	z-index: -1;
+}
+
+@media screen and (min-width: 400px) {
+	p#message {
+		font-size: 50;
+	}
 }
 
 .button {
@@ -129,9 +148,30 @@ function interrupt() {
 	}
 }
 
+function draw_clock(elapsed, interval) {
+	const svg = document.getElementById('clock');
+	while (svg.lastElementChild) {
+		svg.removeChild(svg.lastElementChild);
+	}
+	if (document.getElementById('show_clock').checked) {
+		const frac = Math.min(1, elapsed / interval);
+		const ns = 'http://www.w3.org/2000/svg'; 
+		const x = 50 + Math.sin(frac * 2 * Math.PI) * 50;
+		const y = 50 - Math.cos(frac * 2 * Math.PI) * 50;
+		const large = (frac >= 0.5) ? 1 : 0;
+		const d = `M50,50 L50,0 A50,50,0,${large},1,${x},${y}`;
+		const path = document.createElementNS(ns, 'path');
+		path.setAttribute('d', d);
+		path.setAttribute('fill', 'rgba(0,0,0,0.2)');
+		svg.appendChild(path);
+	}
+}
+
 function tick() {
-	let time = new Date().getTime();
-	if (time - last_time >= interval_ms()) {
+	const time = new Date().getTime();
+	const interval = interval_ms();
+	draw_clock(time - last_time, interval);
+	if (time - last_time >= interval) {
 		last_time = time;
 		interrupt();
 	}
@@ -145,7 +185,7 @@ function play() {
 	last_time = new Date().getTime();
 
 	interrupt();
-	timer = setInterval(tick,5000);
+	timer = setInterval(tick,1000);
 }
 
 </script>
@@ -161,9 +201,13 @@ function play() {
 	<input type="button" class="button" value="Play" autocomplete="off" onclick="play()">
 	</p>
 	<hr>
-	<p id="message">
-	&nbsp;
-	</p>
+	<div id="messagediv">
+		<svg id="clock">
+		</svg>
+		<p id="message">
+		&nbsp;
+		</p>
+	</div>
 	<hr>
 	<p>
 	<select id="interval" autocomplete="off">
@@ -182,6 +226,8 @@ function play() {
 	</p>
 	<p>
 	<input type="checkbox" class="checkbox" name="ding" id="ding" autocomplete="off"><label for="ding">Ding</label>
+	&nbsp;&nbsp;
+	<input type="checkbox" class="checkbox" name="show_clock" id="show_clock" autocomplete="off"><label for="show_clock">Show clock</label>
 	</p>
 </body>
 </html>
