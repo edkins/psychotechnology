@@ -77,6 +77,11 @@ function randomize_message(old_message) {
 function interrupt() {
 	const old_message = document.getElementById('message').textContent;
 	document.getElementById('message').textContent = randomize_message(old_message);
+
+	if (document.getElementById('ding').checked) {
+		const audio = new Audio('ding.mp3');
+		audio.play();
+	}
 }
 
 function tick() {
@@ -121,6 +126,9 @@ function play() {
 		<option value="240">4 minutes</option>
 		<option value="300">5 minutes</option>
 	</select>
+	</p>
+	<p>
+	<input type="checkbox" id="ding"> Ding
 	</p>
 	<p>
 	<input type="button" value="Play" autocomplete="off" onclick="play()">
