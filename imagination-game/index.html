@@ -105,16 +105,16 @@ function play() {
 	Who's playing? Enter names separated by new lines.
 	</p>
 	<p>
-	<textarea id="players" rows="6" cols="20"></textarea>
+	<textarea id="players" rows="6" cols="20" autocomplete="off"></textarea>
 	</p>
 	<p>
-	<select id="modality">
+	<select id="modality" autocomplete="off">
 		<option value="thinking-feeling">Thinking/feeling</option>
 		<option value="salient">What's salient</option>
 	</select>
 	</p>
 	<p>
-	<select id="interval">
+	<select id="interval" autocomplete="off">
 		<option value="60">1 minute</option>
 		<option value="120">2 minutes</option>
 		<option value="180">3 minutes</option>
@@ -123,7 +123,7 @@ function play() {
 	</select>
 	</p>
 	<p>
-	<input type="button" value="Play" onclick="play()">
+	<input type="button" value="Play" autocomplete="off" onclick="play()">
 	</p>
 	<p id="message">
 	</p>
